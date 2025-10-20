@@ -10,11 +10,15 @@ import {
 } from "react-native";
 import axios from "axios";
 import { extractIdFromUrl, officialArtworkUrl } from "../utils/utils";
+import { TextInput, Alert } from "react-native";
 
 export default function HomeScreen({ navigation }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
 
   // Botão no header para abrir Favoritos
   useLayoutEffect(() => {
@@ -69,6 +73,33 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
+  const onSearch = async () => {
+    const q = query.trim().toLowerCase();
+    if (!q) {
+      Alert.alert("Erro", "Por favor, insira um nome ou ID válido.");
+      return;
+    }
+
+    setSearching(true);
+
+    try {
+      const res = await axios.get(`https://pokeapi.co/api/v2/pokemon/${q}`);
+      const pokemon = res.data;
+      const id = pokemon.id;
+      const img = officialArtworkUrl(id);
+
+      navigation.navigate("Detalhes", {
+        pokemon,
+        id,
+        img,
+      });
+    } catch (err) {
+      Alert.alert("Erro", "Pokémon não encontrado. Verifique o nome ou ID.");
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const renderItem = ({ item }) => {
     const id = extractIdFromUrl(item.url);
     const img = officialArtworkUrl(id);
@@ -98,6 +129,25 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <View style={styles.searchRow}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar por nome ou ID"
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={onSearch}
+          returnKeyType="search"
+        />
+        <TouchableOpacity
+          onPress={onSearch}
+          style={[styles.searchButton, searching && { opacity: 0.7 }]}
+          disabled={searching}
+        >
+          <Text style={styles.searchButtonText}>
+            {searching ? "Buscando..." : "Buscar"}
+          </Text>
+        </TouchableOpacity>
+      </View>
       <FlatList
         data={data ?? []}
         keyExtractor={(item) => item.name}
@@ -116,7 +166,7 @@ export default function HomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  listContent: { padding: 12, paddingBottom: 24 },
+  listContent: { padding: 12, paddingBottom: 24, alignItems: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   msg: { marginTop: 8, color: "#555" },
   error: { color: "#C0392B", textAlign: "center" },
@@ -140,5 +190,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     textTransform: "capitalize",
+  },
+  searchRow: {
+    flexDirection: "row",
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginRight: 8,
+  },
+  searchButton: {
+    backgroundColor: "#3498db",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  searchButtonText: {
+    color: "#fff",
+    fontWeight: "600",
   },
 });
