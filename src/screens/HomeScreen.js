@@ -16,11 +16,12 @@ export default function HomeScreen({ navigation }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [nextUrl, setNextUrl] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
 
-  // Botão no header para abrir Favoritos
   useLayoutEffect(() => {
     navigation.setOptions({
       title: "Pokédex",
@@ -46,6 +47,7 @@ export default function HomeScreen({ navigation }) {
           "https://pokeapi.co/api/v2/pokemon?limit=10&offset=0"
         );
         setData(response.data.results);
+        setNextUrl(response.data.next);
       } catch (err) {
         console.error("Erro ao buscar Pokémons:", err);
         setError("Falha ao carregar os dados.");
@@ -72,6 +74,21 @@ export default function HomeScreen({ navigation }) {
       </View>
     );
   }
+
+  const loadMore = async () => {
+    if (!nextUrl || loadingMore) return;
+    try {
+      setLoadingMore(true);
+      const res = await axios.get(nextUrl); // nextUrl é absoluto; ok usar direto
+      setData((prev) => [...(prev ?? []), ...res.data.results]);
+      setNextUrl(res.data.next); // pode vir null quando acabar
+    } catch (err) {
+      console.error("Erro ao carregar mais Pokémons:", err);
+      // opcional: mostrar erro em UI
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const onSearch = async () => {
     const q = query.trim().toLowerCase();
@@ -159,6 +176,25 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.msg}>Nenhum Pokémon encontrado.</Text>
           </View>
         }
+        ListFooterComponent={
+          <View style={{ padding: 12 }}>
+            {nextUrl ? (
+              <TouchableOpacity
+                onPress={loadMore}
+                disabled={loadingMore}
+                style={[styles.loadMoreBtn, loadingMore && { opacity: 0.7 }]}
+              >
+                {loadingMore ? (
+                  <ActivityIndicator />
+                ) : (
+                  <Text style={styles.loadMoreText}>Carregar mais</Text>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.endText}>Você chegou ao fim da lista.</Text>
+            )}
+          </View>
+        }
       />
     </View>
   );
@@ -216,4 +252,15 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
   },
+  loadMoreBtn: {
+    alignSelf: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "#e74c3c",
+    minWidth: 160,
+    alignItems: "center",
+  },
+  loadMoreText: { color: "#fff", fontWeight: "700" },
+  endText: { textAlign: "center", color: "#777" },
 });
